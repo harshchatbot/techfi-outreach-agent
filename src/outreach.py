@@ -47,11 +47,45 @@ def _extract_value_from_text(text: str, key: str, default: str = "") -> str:
     return default
 
 
-def _clean_personalization_hook(hook: str | None, company_name: str | None) -> str:
+def _build_personalization_fallback(
+    company_name: str | None,
+    pain_signal: str | None,
+    lead_type: str | None,
+    service_angle: str | None,
+) -> str:
     company_name = company_name or "your company"
+    pain_signal = (pain_signal or "").strip()
+    lead_type = (lead_type or "").strip()
+    service_angle = (service_angle or "").strip()
+
+    if pain_signal:
+        return f"Noticed {company_name} has a relevant Salesforce delivery signal."
+
+    if lead_type:
+        return f"Noticed {company_name} works in {lead_type}."
+
+    if service_angle:
+        return f"Noticed {company_name} may be relevant for {service_angle}."
+
+    return f"Noticed {company_name} is active in technology services."
+
+
+def _clean_personalization_hook(
+    hook: str | None,
+    company_name: str | None,
+    pain_signal: str | None = None,
+    lead_type: str | None = None,
+    service_angle: str | None = None,
+) -> str:
+    fallback = _build_personalization_fallback(
+        company_name=company_name,
+        pain_signal=pain_signal,
+        lead_type=lead_type,
+        service_angle=service_angle,
+    )
 
     if not hook:
-        return f"Noticed {company_name} is active in technology services."
+        return fallback
 
     hook = hook.strip()
 
@@ -61,11 +95,15 @@ def _clean_personalization_hook(hook: str | None, company_name: str | None) -> s
     if hook.startswith("I see"):
         hook = hook.replace("I see", "Noticed", 1)
 
-    if hook.startswith("I was impressed"):
-        hook = f"Noticed {company_name} is active in technology services."
+    weak_phrases = (
+        "innovative tech solutions",
+        "amazing work",
+        "impressed",
+        "leading company",
+    )
 
-    if "innovative tech solutions" in hook.lower():
-        hook = f"Noticed {company_name} is active in technology services."
+    if any(phrase in hook.lower() for phrase in weak_phrases):
+        hook = fallback
 
     return hook
 
@@ -161,6 +199,8 @@ def generate_outreach_email(lead: dict) -> dict:
     first_name = lead.get("first_name")
     company_name = lead.get("company_name")
     service_angle = lead.get("service_angle")
+    pain_signal = lead.get("pain_signal")
+    lead_type = lead.get("lead_type")
 
     qualified = _extract_value_from_text(
         qualification_context,
@@ -177,6 +217,9 @@ def generate_outreach_email(lead: dict) -> dict:
     personalization_hook = _clean_personalization_hook(
         personalization_hook_from_agent,
         company_name,
+        pain_signal=pain_signal,
+        lead_type=lead_type,
+        service_angle=service_angle,
     )
 
     subject = _build_subject(service_angle)

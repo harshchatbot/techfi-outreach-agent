@@ -31,6 +31,10 @@ Title: {lead.get("title")}
 Website: {lead.get("website")}
 LinkedIn: {lead.get("linkedin_url")}
 Service Angle: {lead.get("service_angle")}
+Lead Source: {lead.get("lead_source")}
+Country: {lead.get("country")}
+Lead Type: {lead.get("lead_type")}
+Pain Signal: {lead.get("pain_signal")}
 Notes: {lead.get("notes")}
 
 Return:
@@ -55,6 +59,10 @@ First Name: {lead.get("first_name")}
 Company: {lead.get("company_name")}
 Title: {lead.get("title")}
 Service Angle: {lead.get("service_angle")}
+Lead Source: {lead.get("lead_source")}
+Country: {lead.get("country")}
+Lead Type: {lead.get("lead_type")}
+Pain Signal: {lead.get("pain_signal")}
 Notes: {lead.get("notes")}
 
 Qualification context:
@@ -65,20 +73,24 @@ Rules:
 - Mention the company name if available.
 - Keep it factual.
 - Maximum 15 words.
+- Use pain_signal as the strongest input whenever it is available and relevant.
+- If pain_signal is blank or weak, use lead_type plus company_name.
+- If lead_type is blank or weak, use service_angle.
 - Do not overpraise.
 - Do not use "I see".
 - Do not use "I noticed".
 - Do not use "I was impressed".
 - Do not invent facts.
-- Do not use generic phrases like "innovative tech solutions" unless that exact phrase is present in notes.
-- If notes mention Salesforce hiring, Salesforce projects, Salesforce clients, C2C, staff augmentation, or managed support, use that in the hook.
+- Do not use generic phrases like "innovative tech solutions", "amazing work", "impressed by", or "leading company".
+- If pain_signal mentions Salesforce hiring, delivery support, QA automation, staff augmentation, managed support, or US Salesforce clients, prefer that signal directly.
 - If notes are weak or generic, keep the hook simple and company-based.
 
 Good examples:
+- Noticed ABC Consulting recently posted a Salesforce QA automation role.
 - Noticed ABC Consulting works with US Salesforce clients.
+- Noticed ABC Consulting may need Salesforce staff augmentation support.
 - Noticed ABC Consulting is hiring Salesforce talent.
-- Noticed ABC Consulting supports Salesforce delivery for client projects.
-- Noticed ABC Consulting works with US-based technology clients.
+- Noticed ABC Consulting is active in Salesforce delivery support.
 
 Bad examples:
 - I noticed ABC Consulting focuses on innovative tech solutions.

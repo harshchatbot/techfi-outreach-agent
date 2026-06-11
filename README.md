@@ -23,6 +23,21 @@ The script checks this file before normal status processing, using case-insensit
 trimmed email matching. If the file is missing, the script treats the do-not-contact
 list as empty and continues safely.
 
+## Richer lead fields
+
+- `lead_source` = where the lead came from, such as LinkedIn, Apollo, or Referral
+- `country` = target country
+- `lead_type` = Direct Client, Salesforce Consulting Agency, IT Services Agency, Recruiter, or Partner
+- `pain_signal` = strongest reason for outreach, such as a Salesforce QA role, hiring signal, or client-delivery need
+- `last_contacted_at` = optional manual tracking field
+
+Example row:
+
+```csv
+first_name,last_name,email,company_name,title,website,linkedin_url,service_angle,lead_source,country,lead_type,pain_signal,notes,last_contacted_at,status
+Harsh Veer,Nirwan,thetechfilabs@gmail.com,The Technology Fiction,Founder,https://www.thetechnologyfiction.com/,https://www.linkedin.com/company/thetechnologyfiction,Salesforce staff augmentation,Manual Test,India,Internal Test,Testing Salesforce staff augmentation outreach flow,Testing email trigger to my own Gmail account,,New
+```
+
 ## Testing
 
 Keep `ENABLE_EMAIL_SEND=false` during testing so the script only creates drafts.

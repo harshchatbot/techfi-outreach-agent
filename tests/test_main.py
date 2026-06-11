@@ -16,7 +16,12 @@ def _sample_lead(status="New", email="lead@example.com") -> dict:
         "website": "https://example.com",
         "linkedin_url": "https://linkedin.com/company/example",
         "service_angle": "Salesforce staff augmentation",
+        "lead_source": "Manual Test",
+        "country": "India",
+        "lead_type": "Salesforce Consulting Agency",
+        "pain_signal": "Posted a Salesforce QA automation role",
         "notes": "Testing",
+        "last_contacted_at": "",
         "status": status,
     }
 
@@ -118,6 +123,11 @@ def test_process_leads_new_lead_drafts_when_sending_disabled():
     assert calls == {"generate": 1, "send": 0}
     assert results[0]["status"] == "Drafted"
     assert "P.S. If this is not relevant" in results[0]["email_body"]
+    assert results[0]["lead_source"] == "Manual Test"
+    assert results[0]["country"] == "India"
+    assert results[0]["lead_type"] == "Salesforce Consulting Agency"
+    assert results[0]["pain_signal"] == "Posted a Salesforce QA automation role"
+    assert results[0]["last_contacted_at"] == ""
     assert results[0]["skip_reason"] == ""
     assert summary["drafted"] == 1
     assert summary["processed"] == 1
@@ -189,8 +199,8 @@ def test_main_reads_missing_do_not_contact_file_without_crashing(monkeypatch, tm
     input_file = tmp_path / "leads.csv"
     output_file = tmp_path / "output.csv"
     input_file.write_text(
-        "first_name,last_name,email,company_name,title,website,linkedin_url,service_angle,notes,status\n"
-        "Ava,Stone,lead@example.com,Acme Labs,Founder,https://example.com,https://linkedin.com/company/example,Salesforce staff augmentation,Testing,New\n",
+        "first_name,last_name,email,company_name,title,website,linkedin_url,service_angle,lead_source,country,lead_type,pain_signal,notes,last_contacted_at,status\n"
+        "Ava,Stone,lead@example.com,Acme Labs,Founder,https://example.com,https://linkedin.com/company/example,Salesforce staff augmentation,Manual Test,India,Salesforce Consulting Agency,Posted a Salesforce QA automation role,Testing,,New\n",
         encoding="utf-8",
     )
 
@@ -235,3 +245,5 @@ def test_main_reads_missing_do_not_contact_file_without_crashing(monkeypatch, tm
 
     output_text = output_file.read_text(encoding="utf-8")
     assert "Drafted" in output_text
+    assert "Manual Test" in output_text
+    assert "Salesforce Consulting Agency" in output_text
