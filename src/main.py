@@ -20,11 +20,12 @@ Founder:
 Harsh Veer Nirwan
 
 Services:
-- Salesforce development
-- Salesforce QA and automation testing
+- Salesforce developers
+- Salesforce QA automation
+- Salesforce production support
 - Salesforce managed support
-- Salesforce staff augmentation
-- Offshore Salesforce delivery support
+- Flexible Salesforce staff augmentation
+- Offshore Salesforce delivery support from India
 
 Lead details:
 First Name: {lead.get("first_name")}
@@ -41,18 +42,29 @@ Task:
 1. Decide if this lead is qualified.
 2. Give priority: High, Medium, or Low.
 3. Create one short personalization hook.
-4. Write a short cold email subject.
-5. Write a short human-sounding cold email body.
-6. Write follow-up 1.
-7. Write follow-up 2.
+4. Write one simple cold email subject.
+5. Write one plain founder-style cold email.
+6. Write follow-up 1 in under 45 words.
+7. Write follow-up 2 in under 45 words.
 
 Rules:
-- Keep email simple and human.
-- Do not sound too salesy.
-- Do not overpromise.
-- Mention TechFi Labs naturally.
-- Mention Salesforce consulting/staff augmentation only if relevant.
-- Keep the first email under 120 words.
+- Keep the first email between 55 and 80 words.
+- Write like a real founder/operator, not a marketing or sales team.
+- Use simple Indian founder-style English, but professional.
+- Avoid all generic cold email phrases.
+- Do not say: "I hope this finds you well", "enhance your offerings", "how we can assist", "valuable support", "last check-in", "quick chat", "brief discussion", "streamline", "synergy", "impressed".
+- Do not overpraise the prospect.
+- Do not sound desperate.
+- Be direct and low-pressure.
+- Mention TechFi Labs as a Salesforce-focused delivery partner.
+- Mention practical services only: Salesforce developers, QA automation, production support, managed support, staff augmentation.
+- End with: "Would it make sense to connect?"
+- Do not use phrases like "we specialize", "strong track record", "enhance", "ensure smooth operations", "valuable support", "really benefit", "exploring a partnership", or "happy to share insights".
+- Do not make claims unless provided in the lead notes.
+- Prefer simple wording like "I run TechFi Labs" and "we support teams with".
+- The email should feel like a calm founder note, not a marketing email.
+- First email must be maximum 75 words.
+- Follow-ups must be maximum 35 words each.
 
 Return the response in this exact format:
 
@@ -77,7 +89,7 @@ Follow Up 2:
                 "content": prompt
             }
         ],
-        temperature=0.4
+        temperature=0.3
     )
 
     content = response.choices[0].message.content
