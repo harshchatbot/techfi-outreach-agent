@@ -44,9 +44,21 @@ Task:
 2. Give priority: High, Medium, or Low.
 3. Create one short personalization hook.
 4. Write one simple cold email subject.
-5. Write one plain founder-style cold email.
+5. Write one plain founder-style cold email using the exact email structure below.
 6. Write follow-up 1 in under 35 words.
 7. Write follow-up 2 in under 35 words.
+
+Email structure:
+Hi FirstName,
+
+Personalization hook.
+
+I run TechFi Labs, a Salesforce-focused delivery partner from India. We support teams with Salesforce developers, QA automation, production support, managed support, and flexible staff augmentation.
+
+Would it make sense to connect?
+
+Best,
+Harsh
 
 Rules:
 - Keep the first email between 55 and 80 words.
@@ -66,6 +78,13 @@ Rules:
 - First email must be maximum 75 words.
 - Follow-ups must be maximum 35 words each.
 - End the first email with: "Would it make sense to connect?"
+- Put the personalization hook immediately after the greeting.
+- Use line breaks exactly like a normal email.
+- Always end the first email with:
+Best,
+Harsh
+- Do not repeat the same idea twice.
+- Subject should be simple, maximum 5 words.
 
 Return only valid JSON.
 Do not include markdown.
