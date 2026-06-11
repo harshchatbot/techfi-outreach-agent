@@ -60,6 +60,15 @@ def _load_config_module(monkeypatch, **env_vars):
         monkeypatch.delenv(key, raising=False)
 
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("LEAD_SOURCE_TYPE", "csv")
+    monkeypatch.setenv("GOOGLE_SHEET_ID", "")
+    monkeypatch.setenv("GOOGLE_SHEET_WORKSHEET_NAME", "Leads")
+    monkeypatch.setenv("GOOGLE_OUTPUT_WORKSHEET_NAME", "Outreach Output")
+    monkeypatch.setenv(
+        "GOOGLE_SERVICE_ACCOUNT_FILE",
+        "secrets/google_service_account.json",
+    )
+    monkeypatch.setenv("MAX_LEADS_PER_RUN", "1")
     for key, value in env_vars.items():
         monkeypatch.setenv(key, value)
 

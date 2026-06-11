@@ -11,7 +11,7 @@ def test_deterministic_email_template_contains_required_text():
     assert "additional Salesforce capacity without long hiring cycles" in email_body
     assert "Thanks & Regards" in email_body
     assert "Harsh Veer" in email_body
-    assert "TechFi Labs | Salesforce Registered Partner" in email_body
+    assert "TechFi Labs | Salesforce Registered Partner www.techfilabs.com" in email_body
     assert "P.S. If this is not relevant" in email_body
     assert "Best, Harsh" not in email_body
     assert "We support teams with Salesforce developers" not in email_body
