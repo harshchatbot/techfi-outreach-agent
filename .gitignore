@@ -1,0 +1,6 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+data/outreach_output.csv
+.DS_Store
