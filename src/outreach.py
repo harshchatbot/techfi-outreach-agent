@@ -1,3 +1,11 @@
+import os
+from pathlib import Path
+
+os.environ.setdefault(
+    "CREWAI_STORAGE_DIR",
+    str(Path(__file__).resolve().parents[1] / ".crewai_storage"),
+)
+
 from crewai import Crew, Process
 
 from agents import (
@@ -112,6 +120,8 @@ def _build_follow_up_2(first_name: str | None) -> str:
 
 
 def generate_outreach_email(lead: dict) -> dict:
+    print("DEBUG: using enforced outreach template from src/outreach.py")
+
     qualification_agent = create_qualification_agent()
     personalization_agent = create_personalization_agent()
 
