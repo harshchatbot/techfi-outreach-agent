@@ -1,129 +1,97 @@
 import json
-from openai import OpenAI
-from config import OPENAI_API_KEY
+from crewai import Crew, Process
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+from agents import (
+    create_email_writer_agent,
+    create_personalization_agent,
+    create_qualification_agent,
+)
+from tasks import (
+    create_email_writer_task,
+    create_personalization_task,
+    create_qualification_task,
+)
 
 
-def generate_outreach_email(lead: dict) -> dict:
-    prompt = f"""
-You are an expert B2B cold email writer for a Salesforce consulting and staff augmentation company.
-
-Company sending the email:
-TechFi Labs
-
-Founder:
-Harsh Veer Nirwan
-
-Services:
-- Salesforce developers
-- Salesforce QA automation
-- Salesforce production support
-- Salesforce managed support
-- Flexible Salesforce staff augmentation
-- Offshore Salesforce delivery support from India
-
-Lead details:
-First Name: {lead.get("first_name")}
-Last Name: {lead.get("last_name")}
-Email: {lead.get("email")}
-Company: {lead.get("company_name")}
-Title: {lead.get("title")}
-Website: {lead.get("website")}
-LinkedIn: {lead.get("linkedin_url")}
-Service Angle: {lead.get("service_angle")}
-Notes: {lead.get("notes")}
-
-Task:
-1. Decide if this lead is qualified.
-2. Give priority: High, Medium, or Low.
-3. Create one short personalization hook.
-4. Write one simple cold email subject.
-5. Write one plain founder-style cold email using the exact email structure below.
-6. Write follow-up 1 in under 35 words.
-7. Write follow-up 2 in under 35 words.
-
-Email structure:
-Hi FirstName,
-
-Personalization hook.
-
-I run TechFi Labs, a Salesforce-focused delivery partner from India. We support teams with Salesforce developers, QA automation, production support, managed support, and flexible staff augmentation.
-
-Would it make sense to connect?
-
-Best,
-Harsh
-
-Rules:
-- Keep the first email between 55 and 80 words.
-- Write like a real founder/operator, not a marketing or sales team.
-- Use simple professional English.
-- Put the personalization hook immediately after the greeting.
-- Use line breaks exactly like a normal email.
-- Always end the first email with:
-Best,
-Harsh
-- Do not repeat the same idea twice.
-- Subject should be simple, maximum 5 words.
-- Avoid all generic cold email phrases.
-- Do not say: "I hope this finds you well", "enhance your offerings", "how we can assist", "valuable support", "last check-in", "quick chat", "brief discussion", "streamline", "synergy", "impressed".
-- Do not say: "we specialize", "strong track record", "enhance", "ensure smooth operations", "really benefit", "exploring a partnership", or "happy to share insights".
-- Do not overpraise the prospect.
-- Do not sound desperate.
-- Do not make claims unless provided in the lead notes.
-- Be direct and low-pressure.
-- Prefer simple wording like "I run TechFi Labs" and "we support teams with".
-- Mention TechFi Labs as a Salesforce-focused delivery partner from India.
-- Mention practical services only: Salesforce developers, QA automation, production support, managed support, staff augmentation.
-- End the first email with: "Would it make sense to connect?"
-
-Return only valid JSON.
-Do not include markdown.
-Do not include explanation.
-Do not wrap the JSON inside ```json.
-
-JSON format:
-{{
-  "qualified": "Yes or No",
-  "priority": "High, Medium, or Low",
-  "personalization_hook": "short personalization hook",
-  "subject": "email subject",
-  "email_body": "full first email body",
-  "follow_up_1": "first follow-up email body",
-  "follow_up_2": "second follow-up email body"
-}}
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "You write concise, professional B2B outreach emails and return only valid JSON."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
-        temperature=0.3
-    )
-
-    content = response.choices[0].message.content.strip()
-
+def _parse_json_safely(content: str) -> dict:
     try:
-        parsed = json.loads(content)
+        return json.loads(content)
     except json.JSONDecodeError:
-        parsed = {
+        return {
             "qualified": "Parse Error",
             "priority": "",
             "personalization_hook": "",
             "subject": "",
             "email_body": content,
             "follow_up_1": "",
-            "follow_up_2": ""
+            "follow_up_2": "",
         }
+
+
+def _get_raw_output(result) -> str:
+    """
+    CrewAI result object can vary slightly by version.
+    This keeps our code safer across versions.
+    """
+    if hasattr(result, "raw"):
+        return result.raw
+
+    return str(result)
+
+
+def generate_outreach_email(lead: dict) -> dict:
+    qualification_agent = create_qualification_agent()
+    personalization_agent = create_personalization_agent()
+    email_writer_agent = create_email_writer_agent()
+
+    qualification_task = create_qualification_task(
+        agent=qualification_agent,
+        lead=lead,
+    )
+
+    qualification_crew = Crew(
+        agents=[qualification_agent],
+        tasks=[qualification_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+
+    qualification_result = qualification_crew.kickoff()
+    qualification_context = _get_raw_output(qualification_result)
+
+    personalization_task = create_personalization_task(
+        agent=personalization_agent,
+        lead=lead,
+        qualification_context=qualification_context,
+    )
+
+    personalization_crew = Crew(
+        agents=[personalization_agent],
+        tasks=[personalization_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+
+    personalization_result = personalization_crew.kickoff()
+    personalization_hook = _get_raw_output(personalization_result)
+
+    email_writer_task = create_email_writer_task(
+        agent=email_writer_agent,
+        lead=lead,
+        qualification_context=qualification_context,
+        personalization_hook=personalization_hook,
+    )
+
+    email_crew = Crew(
+        agents=[email_writer_agent],
+        tasks=[email_writer_task],
+        process=Process.sequential,
+        verbose=False,
+    )
+
+    email_result = email_crew.kickoff()
+    content = _get_raw_output(email_result).strip()
+    parsed = _parse_json_safely(content)
 
     return {
         "email": lead.get("email"),
@@ -137,5 +105,5 @@ JSON format:
         "email_body": parsed.get("email_body"),
         "follow_up_1": parsed.get("follow_up_1"),
         "follow_up_2": parsed.get("follow_up_2"),
-        "status": "Drafted"
+        "status": "Drafted",
     }
