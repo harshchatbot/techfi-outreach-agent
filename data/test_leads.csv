@@ -1,3 +1,2 @@
 first_name,last_name,email,company_name,title,website,linkedin_url,service_angle,notes,status
-John,Smith,john@example.com,ABC Consulting,Delivery Manager,https://abcconsulting.com,https://linkedin.com/in/johnsmith,Salesforce staff augmentation,Works with US Salesforce clients,New
-Priya,Sharma,priya@example.com,CloudBridge Solutions,Founder,https://cloudbridge.com,https://linkedin.com/in/priyasharma,Salesforce managed support,Small IT agency serving US clients,New
+Harsh Veer,Nirwan,thetechfilabs@gmail.com,The Technology Fiction,Founder,https://www.thetechnologyfiction.com/,https://www.linkedin.com/company/thetechnologyfiction,Salesforce staff augmentation,Testing email trigger to my own Gmail account,New
