@@ -98,7 +98,9 @@ In case your team ever needs additional Salesforce capacity without long hiring 
 
 Thanks & Regards,
 Harsh Veer
-TechFi Labs | Salesforce Registered Partner"""
+TechFi Labs | Salesforce Registered Partner
+
+P.S. If this is not relevant, feel free to reply "not interested" and I won't follow up."""
 
 
 def _build_follow_up_1(first_name: str | None) -> str:
