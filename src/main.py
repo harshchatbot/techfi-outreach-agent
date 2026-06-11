@@ -5,7 +5,9 @@ from openai import OpenAI
 from config import OPENAI_API_KEY
 from outreach import generate_outreach_email
 from utils import read_leads, save_output
-
+from email_sender import send_email
+from outreach import generate_outreach_email
+from utils import read_leads, save_output
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -155,10 +157,11 @@ JSON format:
 
 
 
+
+
+
 def main():
-    # For testing, process only 1 record.
-    # Change limit=1 to limit=5 when you want to test 5 leads.
-    # Remove limit when you want to process all leads.
+    # Safety: only process 1 test record.
     leads_df = read_leads(INPUT_FILE, limit=1)
 
     results = []
@@ -172,6 +175,15 @@ def main():
         )
 
         result = generate_outreach_email(lead)
+
+        sent = send_email(
+            to_email=result.get("email"),
+            subject=result.get("subject"),
+            body=result.get("email_body"),
+        )
+
+        result["status"] = "Sent" if sent else "Drafted"
+
         results.append(result)
 
     save_output(results, OUTPUT_FILE)
