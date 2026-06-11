@@ -1,3 +1,4 @@
+import importlib
 import sys
 from types import ModuleType
 
@@ -24,6 +25,62 @@ def _sample_lead(status="New", email="lead@example.com") -> dict:
         "last_contacted_at": "",
         "status": status,
     }
+
+
+def _fake_result_from_lead(lead: dict) -> dict:
+    return {
+        "email": lead["email"],
+        "company_name": lead["company_name"],
+        "title": lead["title"],
+        "service_angle": lead["service_angle"],
+        "qualified": "Yes",
+        "priority": "High",
+        "personalization_hook": "Noticed Acme Labs supports Salesforce delivery.",
+        "subject": "Salesforce Delivery Support",
+        "email_body": "P.S. If this is not relevant, feel free to reply \"not interested\" and I won't follow up.",
+        "follow_up_1": "Follow up 1",
+        "follow_up_2": "Follow up 2",
+        "status": "Drafted",
+    }
+
+
+def _load_config_module(monkeypatch, **env_vars):
+    for key in [
+        "OPENAI_API_KEY",
+        "SENDER_EMAIL",
+        "SENDER_APP_PASSWORD",
+        "ENABLE_EMAIL_SEND",
+        "LEAD_SOURCE_TYPE",
+        "GOOGLE_SHEET_ID",
+        "GOOGLE_SHEET_WORKSHEET_NAME",
+        "GOOGLE_OUTPUT_WORKSHEET_NAME",
+        "GOOGLE_SERVICE_ACCOUNT_FILE",
+        "MAX_LEADS_PER_RUN",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    for key, value in env_vars.items():
+        monkeypatch.setenv(key, value)
+
+    sys.modules.pop("config", None)
+    return importlib.import_module("config")
+
+
+def test_config_defaults_to_csv(monkeypatch):
+    config = _load_config_module(monkeypatch)
+
+    assert config.LEAD_SOURCE_TYPE == "csv"
+    assert config.MAX_LEADS_PER_RUN == 1
+
+
+def test_config_requires_google_sheet_id_in_google_sheet_mode(monkeypatch):
+    try:
+        _load_config_module(monkeypatch, LEAD_SOURCE_TYPE="google_sheet")
+    except ValueError as exc:
+        assert str(exc) == "GOOGLE_SHEET_ID is required when LEAD_SOURCE_TYPE=google_sheet."
+    else:
+        raise AssertionError("Expected ValueError for missing GOOGLE_SHEET_ID")
 
 
 def test_should_process_status_cases():
@@ -93,20 +150,7 @@ def test_process_leads_new_lead_drafts_when_sending_disabled():
 
     def fake_generate(lead):
         calls["generate"] += 1
-        return {
-            "email": lead["email"],
-            "company_name": lead["company_name"],
-            "title": lead["title"],
-            "service_angle": lead["service_angle"],
-            "qualified": "Yes",
-            "priority": "High",
-            "personalization_hook": "Noticed Acme Labs supports Salesforce delivery.",
-            "subject": "Salesforce Delivery Support",
-            "email_body": "P.S. If this is not relevant, feel free to reply \"not interested\" and I won't follow up.",
-            "follow_up_1": "Follow up 1",
-            "follow_up_2": "Follow up 2",
-            "status": "Drafted",
-        }
+        return _fake_result_from_lead(lead)
 
     def fake_send(**_kwargs):
         calls["send"] += 1
@@ -164,20 +208,7 @@ def test_process_leads_send_failure_marks_error():
     leads_df = pd.DataFrame([_sample_lead(status="New")])
 
     def fake_generate(lead):
-        return {
-            "email": lead["email"],
-            "company_name": lead["company_name"],
-            "title": lead["title"],
-            "service_angle": lead["service_angle"],
-            "qualified": "Yes",
-            "priority": "High",
-            "personalization_hook": "Noticed Acme Labs supports Salesforce delivery.",
-            "subject": "Salesforce Delivery Support",
-            "email_body": "Body",
-            "follow_up_1": "Follow up 1",
-            "follow_up_2": "Follow up 2",
-            "status": "Drafted",
-        }
+        return _fake_result_from_lead(lead)
 
     def fake_send(**_kwargs):
         raise RuntimeError("SMTP failed")
@@ -210,6 +241,12 @@ def test_main_reads_missing_do_not_contact_file_without_crashing(monkeypatch, tm
 
     dummy_config = ModuleType("config")
     dummy_config.ENABLE_EMAIL_SEND = False
+    dummy_config.LEAD_SOURCE_TYPE = "csv"
+    dummy_config.GOOGLE_SHEET_ID = ""
+    dummy_config.GOOGLE_SHEET_WORKSHEET_NAME = "Leads"
+    dummy_config.GOOGLE_OUTPUT_WORKSHEET_NAME = "Outreach Output"
+    dummy_config.GOOGLE_SERVICE_ACCOUNT_FILE = "secrets/google_service_account.json"
+    dummy_config.MAX_LEADS_PER_RUN = 1
     monkeypatch.setitem(sys.modules, "config", dummy_config)
 
     dummy_email_sender = ModuleType("email_sender")
@@ -221,24 +258,7 @@ def test_main_reads_missing_do_not_contact_file_without_crashing(monkeypatch, tm
     monkeypatch.setitem(sys.modules, "email_sender", dummy_email_sender)
 
     dummy_outreach = ModuleType("outreach")
-
-    def _generate_outreach_email(lead):
-        return {
-            "email": lead["email"],
-            "company_name": lead["company_name"],
-            "title": lead["title"],
-            "service_angle": lead["service_angle"],
-            "qualified": "Yes",
-            "priority": "High",
-            "personalization_hook": "Noticed Acme Labs supports Salesforce delivery.",
-            "subject": "Salesforce Delivery Support",
-            "email_body": "Body",
-            "follow_up_1": "Follow up 1",
-            "follow_up_2": "Follow up 2",
-            "status": "Drafted",
-        }
-
-    dummy_outreach.generate_outreach_email = _generate_outreach_email
+    dummy_outreach.generate_outreach_email = _fake_result_from_lead
     monkeypatch.setitem(sys.modules, "outreach", dummy_outreach)
 
     main.main()
@@ -247,3 +267,153 @@ def test_main_reads_missing_do_not_contact_file_without_crashing(monkeypatch, tm
     assert "Drafted" in output_text
     assert "Manual Test" in output_text
     assert "Salesforce Consulting Agency" in output_text
+
+
+def test_csv_mode_uses_csv_reader_and_writer(monkeypatch):
+    leads_df = pd.DataFrame([_sample_lead(status="New")])
+    calls = {"read": 0, "save": 0, "generate": 0}
+
+    monkeypatch.setattr(
+        main,
+        "read_leads",
+        lambda input_file, limit=None: (
+            calls.__setitem__("read", calls["read"] + 1) or leads_df
+            if input_file == main.INPUT_FILE and limit == 1
+            else (_ for _ in ()).throw(AssertionError("Unexpected CSV read args"))
+        ),
+    )
+
+    def _save_output(results, output_file):
+        calls["save"] += 1
+        assert output_file == main.OUTPUT_FILE
+        assert results[0]["status"] == "Drafted"
+
+    monkeypatch.setattr(main, "save_output", _save_output)
+    monkeypatch.setattr(main, "load_do_not_contact_emails", lambda _path: set())
+
+    dummy_config = ModuleType("config")
+    dummy_config.ENABLE_EMAIL_SEND = False
+    dummy_config.LEAD_SOURCE_TYPE = "csv"
+    dummy_config.GOOGLE_SHEET_ID = ""
+    dummy_config.GOOGLE_SHEET_WORKSHEET_NAME = "Leads"
+    dummy_config.GOOGLE_OUTPUT_WORKSHEET_NAME = "Outreach Output"
+    dummy_config.GOOGLE_SERVICE_ACCOUNT_FILE = "secrets/google_service_account.json"
+    dummy_config.MAX_LEADS_PER_RUN = 1
+    monkeypatch.setitem(sys.modules, "config", dummy_config)
+
+    dummy_email_sender = ModuleType("email_sender")
+    dummy_email_sender.send_email = lambda **_kwargs: (_ for _ in ()).throw(
+        AssertionError("send_email should not be called when disabled")
+    )
+    monkeypatch.setitem(sys.modules, "email_sender", dummy_email_sender)
+
+    dummy_outreach = ModuleType("outreach")
+
+    def _generate(lead):
+        calls["generate"] += 1
+        return _fake_result_from_lead(lead)
+
+    dummy_outreach.generate_outreach_email = _generate
+    monkeypatch.setitem(sys.modules, "outreach", dummy_outreach)
+
+    main.main()
+
+    assert calls == {"read": 1, "save": 1, "generate": 1}
+
+
+def test_max_leads_per_run_one_is_passed_to_csv_reader(monkeypatch):
+    calls = {"limit": None}
+
+    def _read_leads(_input_file, limit=None):
+        calls["limit"] = limit
+        return pd.DataFrame([_sample_lead(email="lead1@example.com")])
+
+    monkeypatch.setattr(main, "read_leads", _read_leads)
+
+    leads_df = main._load_leads(
+        lead_source_type="csv",
+        max_leads_per_run=1,
+        google_sheet_id="",
+        google_sheet_worksheet_name="Leads",
+        google_service_account_file="secrets/google_service_account.json",
+    )
+
+    assert calls["limit"] == 1
+    assert len(leads_df) == 1
+
+
+def test_max_leads_per_run_five_limits_google_sheet_rows(monkeypatch):
+    leads_df = pd.DataFrame(
+        [_sample_lead(email=f"lead{i}@example.com") for i in range(6)]
+    )
+
+    dummy_google_client = ModuleType("google_sheets_client")
+    dummy_google_client.read_leads_from_sheet = (
+        lambda sheet_id, worksheet_name, service_account_file: leads_df
+    )
+    monkeypatch.setitem(sys.modules, "google_sheets_client", dummy_google_client)
+
+    limited_df = main._load_leads(
+        lead_source_type="google_sheet",
+        max_leads_per_run=5,
+        google_sheet_id="sheet-123",
+        google_sheet_worksheet_name="Leads",
+        google_service_account_file="secrets/google_service_account.json",
+    )
+
+    assert len(limited_df) == 5
+
+
+def test_google_sheet_mode_uses_sheet_reader_and_writer(monkeypatch):
+    leads_df = pd.DataFrame([_sample_lead(status="New")])
+    calls = {"read": 0, "write": 0, "generate": 0}
+
+    dummy_config = ModuleType("config")
+    dummy_config.ENABLE_EMAIL_SEND = False
+    dummy_config.LEAD_SOURCE_TYPE = "google_sheet"
+    dummy_config.GOOGLE_SHEET_ID = "sheet-123"
+    dummy_config.GOOGLE_SHEET_WORKSHEET_NAME = "Leads"
+    dummy_config.GOOGLE_OUTPUT_WORKSHEET_NAME = "Outreach Output"
+    dummy_config.GOOGLE_SERVICE_ACCOUNT_FILE = "secrets/google_service_account.json"
+    dummy_config.MAX_LEADS_PER_RUN = 1
+    monkeypatch.setitem(sys.modules, "config", dummy_config)
+
+    dummy_email_sender = ModuleType("email_sender")
+    dummy_email_sender.send_email = lambda **_kwargs: (_ for _ in ()).throw(
+        AssertionError("send_email should not be called when disabled")
+    )
+    monkeypatch.setitem(sys.modules, "email_sender", dummy_email_sender)
+
+    dummy_outreach = ModuleType("outreach")
+
+    def _generate(lead):
+        calls["generate"] += 1
+        return _fake_result_from_lead(lead)
+
+    dummy_outreach.generate_outreach_email = _generate
+    monkeypatch.setitem(sys.modules, "outreach", dummy_outreach)
+
+    dummy_google_client = ModuleType("google_sheets_client")
+
+    def _read(sheet_id, worksheet_name, service_account_file):
+        calls["read"] += 1
+        assert sheet_id == "sheet-123"
+        assert worksheet_name == "Leads"
+        assert service_account_file == "secrets/google_service_account.json"
+        return leads_df
+
+    def _write(sheet_id, worksheet_name, results_df, service_account_file):
+        calls["write"] += 1
+        assert sheet_id == "sheet-123"
+        assert worksheet_name == "Outreach Output"
+        assert service_account_file == "secrets/google_service_account.json"
+        assert isinstance(results_df, pd.DataFrame)
+        assert results_df.iloc[0]["status"] == "Drafted"
+
+    dummy_google_client.read_leads_from_sheet = _read
+    dummy_google_client.write_results_to_sheet = _write
+    monkeypatch.setitem(sys.modules, "google_sheets_client", dummy_google_client)
+
+    main.main()
+
+    assert calls == {"read": 1, "write": 1, "generate": 1}

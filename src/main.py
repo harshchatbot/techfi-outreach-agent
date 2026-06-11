@@ -149,13 +149,81 @@ def process_leads(
     return results, summary
 
 
+def _load_leads(
+    lead_source_type: str,
+    max_leads_per_run: int,
+    google_sheet_id: str,
+    google_sheet_worksheet_name: str,
+    google_service_account_file: str,
+) -> pd.DataFrame:
+    if lead_source_type == "google_sheet":
+        from google_sheets_client import read_leads_from_sheet
+
+        print(
+            "Reading leads from Google Sheet worksheet: "
+            f"{google_sheet_worksheet_name}"
+        )
+        leads_df = read_leads_from_sheet(
+            sheet_id=google_sheet_id,
+            worksheet_name=google_sheet_worksheet_name,
+            service_account_file=google_service_account_file,
+        )
+    else:
+        print("Reading leads from CSV")
+        leads_df = read_leads(INPUT_FILE, limit=max_leads_per_run)
+
+    if max_leads_per_run:
+        return leads_df.head(max_leads_per_run)
+
+    return leads_df
+
+
+def _write_results(
+    results_df: pd.DataFrame,
+    lead_source_type: str,
+    google_sheet_id: str,
+    google_output_worksheet_name: str,
+    google_service_account_file: str,
+) -> None:
+    if lead_source_type == "google_sheet":
+        from google_sheets_client import write_results_to_sheet
+
+        print(
+            "Writing output to Google Sheet worksheet: "
+            f"{google_output_worksheet_name}"
+        )
+        write_results_to_sheet(
+            sheet_id=google_sheet_id,
+            worksheet_name=google_output_worksheet_name,
+            results_df=results_df,
+            service_account_file=google_service_account_file,
+        )
+        return
+
+    print("Writing output to CSV")
+    save_output(results_df.to_dict(orient="records"), OUTPUT_FILE)
+
+
 def main():
-    from config import ENABLE_EMAIL_SEND
+    from config import (
+        ENABLE_EMAIL_SEND,
+        GOOGLE_OUTPUT_WORKSHEET_NAME,
+        GOOGLE_SERVICE_ACCOUNT_FILE,
+        GOOGLE_SHEET_ID,
+        GOOGLE_SHEET_WORKSHEET_NAME,
+        LEAD_SOURCE_TYPE,
+        MAX_LEADS_PER_RUN,
+    )
     from email_sender import send_email
     from outreach import generate_outreach_email
 
-    # Safety: only process 1 test record.
-    leads_df = read_leads(INPUT_FILE, limit=1)
+    leads_df = _load_leads(
+        lead_source_type=LEAD_SOURCE_TYPE,
+        max_leads_per_run=MAX_LEADS_PER_RUN,
+        google_sheet_id=GOOGLE_SHEET_ID,
+        google_sheet_worksheet_name=GOOGLE_SHEET_WORKSHEET_NAME,
+        google_service_account_file=GOOGLE_SERVICE_ACCOUNT_FILE,
+    )
     do_not_contact_emails = load_do_not_contact_emails(DO_NOT_CONTACT_FILE)
 
     results, summary = process_leads(
@@ -166,9 +234,20 @@ def main():
         email_send_enabled=ENABLE_EMAIL_SEND,
     )
 
-    save_output(results, OUTPUT_FILE)
+    results_df = pd.DataFrame(results)
+    _write_results(
+        results_df=results_df,
+        lead_source_type=LEAD_SOURCE_TYPE,
+        google_sheet_id=GOOGLE_SHEET_ID,
+        google_output_worksheet_name=GOOGLE_OUTPUT_WORKSHEET_NAME,
+        google_service_account_file=GOOGLE_SERVICE_ACCOUNT_FILE,
+    )
 
-    print(f"\nDone. Outreach output saved to: {OUTPUT_FILE}")
+    if LEAD_SOURCE_TYPE == "google_sheet":
+        print("\nDone. Outreach output written to Google Sheets.")
+    else:
+        print(f"\nDone. Outreach output saved to: {OUTPUT_FILE}")
+
     print(f"Processed: {summary['processed']}")
     print(f"Sent: {summary['sent']}")
     print(f"Drafted: {summary['drafted']}")

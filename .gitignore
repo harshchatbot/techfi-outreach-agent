@@ -1,6 +1,9 @@
 .venv/
 .crewai_storage/
 .env
+secrets/
+*.service-account.json
+google_service_account.json
 __pycache__/
 *.pyc
 data/outreach_output.csv
